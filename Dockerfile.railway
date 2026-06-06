@@ -1,13 +1,18 @@
-# Dockerfile.railway - derives from ghcr.io/openclaw/openclaw:latest and
-# fixes Railway Volume permission mismatch:
-# upstream image runs as USER node (uid 1000) but Railway mounts /data
-# as root-owned, causing EACCES when OpenClaw tries to write state/workspace.
-# We pre-create + chown /data to node:node so the runtime can use it.
+# Dockerfile.railway - Railway-compatible OpenClaw build.
+# Fixes Railway Volume permission mismatch: upstream image runs USER node
+# (uid 1000) but Railway mounts /data as root-owned. We add a runtime
+# entrypoint that chowns /data before dropping privileges to node.
 FROM ghcr.io/openclaw/openclaw:latest
 USER root
 RUN mkdir -p /data \
  && chown -R node:node /data \
  && chmod 755 /data
-USER node
+# Inline entrypoint script: chown /data on every boot (fixes files created
+# by root via Railway Console), then exec OpenClaw gateway as node user.
+RUN printf '#!/bin/sh\nchown -R node:node /data 2>/dev/null || true\nexec su node -s /bin/sh -c "node /app/openclaw.mjs gateway --bind lan --port \${OPENCLAW_GATEWAY_PORT:-8080} --allow-unconfigured"\n' > /usr/local/bin/railway-entrypoint.sh \
+ && chmod +x /usr/local/bin/railway-entrypoint.sh
+# Keep USER root so entrypoint can chown; it drops to node before exec.
+USER root
 WORKDIR /app
 EXPOSE 8080
+CMD ["/usr/local/bin/railway-entrypoint.sh"]
