@@ -1,0 +1,13 @@
+# Dockerfile.railway - derives from ghcr.io/openclaw/openclaw:latest and
+# fixes Railway Volume permission mismatch:
+# upstream image runs as USER node (uid 1000) but Railway mounts /data
+# as root-owned, causing EACCES when OpenClaw tries to write state/workspace.
+# We pre-create + chown /data to node:node so the runtime can use it.
+FROM ghcr.io/openclaw/openclaw:latest
+USER root
+RUN mkdir -p /data \
+ && chown -R node:node /data \
+ && chmod 755 /data
+USER node
+WORKDIR /app
+EXPOSE 8080
