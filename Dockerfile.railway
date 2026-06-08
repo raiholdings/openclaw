@@ -5,3 +5,4 @@ RUN mkdir -p /data /data/.openclaw /data/.openclaw/devices /data/workspace && \
     chmod -R 777 /data
 USER node
 EXPOSE 8080
+CMD ["node", "/app/openclaw.mjs", "gateway", "--bind", "lan", "--port", "8080", "--allow-unconfigured"]
