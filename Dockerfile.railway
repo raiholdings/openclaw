@@ -3,10 +3,14 @@ USER root
 RUN mkdir -p /data /data/.openclaw /data/.openclaw/devices /data/workspace && \
     chown -R node:node /data && \
     chmod -R 777 /data
+# Startup script ghi gateway.controlUi.allowedOrigins (từ env CONTROL_UI_ORIGIN)
+# THẲNG vào file config trước khi gateway start — không phụ thuộc CLI `config set`.
+COPY --chown=node:node scripts/railway-entrypoint.sh /usr/local/bin/railway-entrypoint.sh
+RUN chmod 755 /usr/local/bin/railway-entrypoint.sh
 USER node
+# Ghim cứng đường dẫn config để script ghi và gateway đọc CÙNG một file
+# (loại bỏ mọi mơ hồ về state-dir/HOME/volume). Railway Variable cùng tên,
+# nếu được set, sẽ override giá trị này và script vẫn bám theo đúng path.
+ENV OPENCLAW_CONFIG_PATH=/home/node/.openclaw/openclaw.json
 EXPOSE 8080
-# Trước khi chạy gateway: nếu biến CONTROL_UI_ORIGIN được set, ghi nó vào
-# gateway.controlUi.allowedOrigins[0] (path-agnostic: ghi vào file tại
-# OPENCLAW_CONFIG_PATH/đường dẫn mặc định). Lỗi config set KHÔNG chặn gateway
-# khởi động vì sau "fi;" luôn chạy "exec ... gateway".
-CMD ["sh","-c","if [ -n \"$CONTROL_UI_ORIGIN\" ]; then node /app/openclaw.mjs config set gateway.controlUi.allowedOrigins[0] \"$CONTROL_UI_ORIGIN\" || echo 'config set failed (non-fatal), continuing'; fi; exec node /app/openclaw.mjs gateway --bind lan --port 8080 --allow-unconfigured"]
+CMD ["sh", "/usr/local/bin/railway-entrypoint.sh"]
