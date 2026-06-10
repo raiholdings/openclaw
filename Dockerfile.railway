@@ -5,4 +5,8 @@ RUN mkdir -p /data /data/.openclaw /data/.openclaw/devices /data/workspace && \
     chmod -R 777 /data
 USER node
 EXPOSE 8080
-CMD ["node", "/app/openclaw.mjs", "gateway", "--bind", "lan", "--port", "8080", "--allow-unconfigured"]
+# Trước khi chạy gateway: nếu biến CONTROL_UI_ORIGIN được set, ghi nó vào
+# gateway.controlUi.allowedOrigins[0] (path-agnostic: ghi vào file tại
+# OPENCLAW_CONFIG_PATH/đường dẫn mặc định). Lỗi config set KHÔNG chặn gateway
+# khởi động vì sau "fi;" luôn chạy "exec ... gateway".
+CMD ["sh","-c","if [ -n \"$CONTROL_UI_ORIGIN\" ]; then node /app/openclaw.mjs config set gateway.controlUi.allowedOrigins[0] \"$CONTROL_UI_ORIGIN\" || echo 'config set failed (non-fatal), continuing'; fi; exec node /app/openclaw.mjs gateway --bind lan --port 8080 --allow-unconfigured"]
